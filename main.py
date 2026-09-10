@@ -19,117 +19,22 @@ class ChronoLensApp:
 
     def __init__(self, root):  
         self.root = root  
-        self.root.title("ChronoLens: Photographic Time Machine")  
-        self.root.configure(bg=self.COLOR_BG)
-        self.root.geometry("880x560")
-        self.root.resizable(False, False)
+        self.root.title("Image Filter App")  
 
-        # Header Title Banner
-        header = Frame(root, bg=self.COLOR_BG)
-        header.pack(fill=X, pady=12)
+        # Widgets  
+        self.load_btn = Button(root, text="Load Image", command=self.load_image)  
+        self.filter_var = StringVar(value="Grayscale")  
+        self.filter_menu = OptionMenu(root, self.filter_var, "Grayscale", "Gaussian Blur", "Canny Edge", command=self.apply_filter)  
+        self.kernel_slider = Scale(root, from_=1, to=15, orient=HORIZONTAL, label="Kernel Size")  
+        self.canvas_orig = Canvas(root, width=400, height=400)  
+        self.canvas_filtered = Canvas(root, width=400, height=400)  
 
-        title_lbl = Label(
-            header, 
-            text="⌛ CHRONOLENS: TEMPORAL PHOTOGRAPHY ⌛", 
-            font=self.FONT_TITLE, 
-            fg=self.COLOR_ACCENT, 
-            bg=self.COLOR_BG
-        )
-        title_lbl.pack()
-
-        # Control Panel Dashboard
-        control_panel = Frame(root, bg=self.COLOR_PANEL, bd=2, relief="ridge", padx=15, pady=10)
-        control_panel.pack(fill=X, padx=20, pady=5)
-
-        # File Import Button
-        self.load_btn = Button(
-            control_panel, 
-            text="📜 Import Subject", 
-            font=self.FONT_MONO, 
-            fg=self.COLOR_TEXT, 
-            bg=self.COLOR_BTN,
-            activebackground=self.COLOR_BTN_HOVER,
-            activeforeground=self.COLOR_ACCENT,
-            relief="groove",
-            bd=3,
-            cursor="hand2",
-            command=self.load_image
-        )  
-        self.load_btn.pack(side=LEFT, padx=10)  
-
-        # Era Selection Dropdown Menu
-        Label(
-            control_panel, 
-            text="Destination Era:", 
-            font=self.FONT_LABEL, 
-            fg=self.COLOR_ACCENT, 
-            bg=self.COLOR_PANEL
-        ).pack(side=LEFT, padx=(15, 5))
-
-        self.era_options = [
-            "Daguerreotype (1840s)",
-            "Tintype (1860s)", 
-            "Sepia Portrait Studio (1900s–1920s)", 
-            "Kodachrome Summer (1970s)", 
-            "Disposable Flash (1990s)",  
-        ]
-        self.filter_var = StringVar(value=self.era_options[0])  
-        self.filter_menu = OptionMenu(control_panel, self.filter_var, *self.era_options, command=self.apply_filter)  
-        self.filter_menu.config(
-            font=self.FONT_MONO,
-            bg=self.COLOR_BTN,
-            fg=self.COLOR_TEXT,
-            activebackground=self.COLOR_BTN_HOVER,
-            activeforeground=self.COLOR_ACCENT,
-            bd=2,
-            highlightthickness=0
-        )
-        self.filter_menu["menu"].config(bg=self.COLOR_PANEL, fg=self.COLOR_TEXT, font=self.FONT_MONO)
-        self.filter_menu.pack(side=LEFT, padx=5)  
-
-        # Temporal Dial (Intensity/Kernel Slider)
-        self.kernel_slider = Scale(
-            control_panel, 
-            from_=1, 
-            to=15, 
-            orient=HORIZONTAL, 
-            label="Temporal Dial",
-            font=("Courier", 8),
-            bg=self.COLOR_PANEL,
-            fg=self.COLOR_TEXT,
-            troughcolor=self.COLOR_BG,
-            activebackground=self.COLOR_ACCENT,
-            highlightthickness=0,
-            command=self.apply_filter
-        )  
-        self.kernel_slider.set(3)
-        self.kernel_slider.pack(side=RIGHT, padx=10)  
-
-        # Viewport Display Area
-        canvas_frame = Frame(root, bg=self.COLOR_BG)
-        canvas_frame.pack(fill=BOTH, expand=True, padx=20, pady=15)
-
-        # Original Photo Viewport
-        self.canvas_orig = Canvas(
-            canvas_frame, 
-            width=400, 
-            height=400, 
-            bg="#0D0B0A", 
-            highlightbackground=self.COLOR_ACCENT, 
-            highlightthickness=2
-        )  
-        self.canvas_orig.pack(side=LEFT, expand=True)  
-
-        # Processed Photo Viewport
-        self.canvas_filtered = Canvas(
-            canvas_frame, 
-            width=400, 
-            height=400, 
-            bg="#0D0B0A", 
-            highlightbackground=self.COLOR_ACCENT, 
-            highlightthickness=2
-        )  
-        self.canvas_filtered.pack(side=RIGHT, expand=True)  
+        # Layout  
+        self.load_btn.pack()  
+        self.filter_menu.pack()  
+        self.kernel_slider.pack()  
+        self.canvas_orig.pack(side=LEFT)  
+        self.canvas_filtered.pack(side=RIGHT)  
 
     def load_image(self):  
         path = filedialog.askopenfilename(filetypes=[("Image Files", "*.jpg *.jpeg *.png *.bmp")])  
