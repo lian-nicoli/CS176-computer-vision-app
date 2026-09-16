@@ -6,19 +6,19 @@ from PIL import Image, ImageTk
 
 
 class ChronoLensApp:
-    COLOR_BG = "#1C1815"  # Dark Walnut
-    COLOR_PANEL = "#2B241F"  # Antique Wood
-    COLOR_ACCENT = "#C59B27"  # Polished Brass
-    COLOR_TEXT = "#F2E8DC"  # Parchment White
-    COLOR_BTN = "#3D322A"  # Deep Leather
+    COLOR_BG = "#1C1815"
+    COLOR_PANEL = "#2B241F"
+    COLOR_ACCENT = "#C59B27"
+    COLOR_TEXT = "#F2E8DC"
+    COLOR_BTN = "#3D322A"
     COLOR_BTN_HOVER = "#54453A"
 
     FONT_TITLE = ("Times New Roman", 18, "bold italic")
     FONT_LABEL = ("Georgia", 11)
     FONT_MONO = ("Courier", 10, "bold")
 
-    PREVIEW_SIZE = 400  # Viewport edge, in pixels
-    FRAME_DELAY_MS = 33  # ~30 fps live feed
+    PREVIEW_SIZE = 400
+    FRAME_DELAY_MS = 33
 
     def __init__(self, root):
         self.root = root
@@ -27,7 +27,6 @@ class ChronoLensApp:
         self.root.geometry("960x620")
         self.root.resizable(False, False)
 
-        # Header Title Banner
         header = Frame(root, bg=self.COLOR_BG)
         header.pack(fill=X, pady=12)
 
@@ -40,13 +39,11 @@ class ChronoLensApp:
         )
         title_lbl.pack()
 
-        # Control Panel Dashboard
         control_panel = Frame(
             root, bg=self.COLOR_PANEL, bd=2, relief="ridge", padx=15, pady=10
         )
         control_panel.pack(fill=X, padx=20, pady=5)
 
-        # File Import Button
         self.load_btn = Button(
             control_panel,
             text="📜 Import Subject",
@@ -62,7 +59,6 @@ class ChronoLensApp:
         )
         self.load_btn.pack(side=LEFT, padx=10)
 
-        # Webcam Capture Button
         self.webcam_btn = Button(
             control_panel,
             text="📷 Start Webcam",
@@ -78,7 +74,6 @@ class ChronoLensApp:
         )
         self.webcam_btn.pack(side=LEFT, padx=10)
 
-        # Freeze-Frame Capture Button
         self.capture_btn = Button(
             control_panel,
             text="📸 Capture",
@@ -101,7 +96,6 @@ class ChronoLensApp:
         self.webcam_job = None
         self.root.protocol("WM_DELETE_WINDOW", self.on_close)
 
-        # Era Selection Dropdown Menu
         Label(
             control_panel,
             text="Destination Era:",
@@ -135,7 +129,6 @@ class ChronoLensApp:
         )
         self.filter_menu.pack(side=LEFT, padx=5)
 
-        # Status Readout
         self.status_var = StringVar(
             value="Import a subject or start the webcam.")
         Label(
@@ -147,29 +140,9 @@ class ChronoLensApp:
             anchor=W,
         ).pack(fill=X, padx=24, pady=(6, 0))
 
-        # Temporal Dial (Intensity/Kernel Slider)
-        # self.kernel_slider = Scale(
-        #     control_panel,
-        #     from_=1,
-        #     to=15,
-        #     orient=HORIZONTAL,
-        #     label="Temporal Dial",
-        #     font=("Courier", 8),
-        #     bg=self.COLOR_PANEL,
-        #     fg=self.COLOR_TEXT,
-        #     troughcolor=self.COLOR_BG,
-        #     activebackground=self.COLOR_ACCENT,
-        #     highlightthickness=0,
-        #     command=self.apply_filter
-        # )
-        # self.kernel_slider.set(3)
-        # self.kernel_slider.pack(side=RIGHT, padx=10)
-
-        # Viewport Display Area
         canvas_frame = Frame(root, bg=self.COLOR_BG)
         canvas_frame.pack(fill=BOTH, expand=True, padx=20, pady=15)
 
-        # Original Photo Viewport
         self.canvas_orig = Canvas(
             canvas_frame,
             width=self.PREVIEW_SIZE,
@@ -180,7 +153,6 @@ class ChronoLensApp:
         )
         self.canvas_orig.pack(side=LEFT, expand=True)
 
-        # Processed Photo Viewport
         self.canvas_filtered = Canvas(
             canvas_frame,
             width=self.PREVIEW_SIZE,
@@ -241,7 +213,6 @@ class ChronoLensApp:
             self.status_var.set("⚠ Lost the camera feed.")
             return
 
-        # Filters run on viewport-sized frames so the live feed keeps up
         self.image = self.to_preview(cv2.flip(frame, 1))
         self.display_image(self.image, self.canvas_orig)
         self.apply_filter()
@@ -253,7 +224,7 @@ class ChronoLensApp:
         if not self.webcam_running or self.cap is None:
             return
 
-        ret, frame = self.cap.read()  # Full-resolution keeper, not the preview copy
+        ret, frame = self.cap.read()
         self.stop_webcam()
         if not ret:
             self.status_var.set("⚠ Could not capture a frame.")
@@ -265,7 +236,6 @@ class ChronoLensApp:
         self.status_var.set("Plate captured — choose a destination era.")
 
     def to_preview(self, frame):
-        # Downscales a BGR camera frame to the viewport and converts it to RGB
         h, w = frame.shape[:2]
         scale = min(self.PREVIEW_SIZE / w, self.PREVIEW_SIZE / h, 1.0)
         if scale < 1.0:
@@ -295,9 +265,6 @@ class ChronoLensApp:
         if not hasattr(self, "image"):
             return
 
-        # Selected drop-down value: self.filter_var.get()
-        # Slider value: self.kernel_slider.get()
-
         era = self.filter_var.get()
 
         if era == "Daguerreotype (1840s)":
@@ -315,15 +282,14 @@ class ChronoLensApp:
 
         self.display_image(filtered, self.canvas_filtered)
 
-    # Filter Presets
     def daguerreotype(self, image):
         h, w = image.shape[:2]
         image = cv2.undistort(
             image,
             np.array([[w, 0, w / 2], [0, w, h / 2], [0, 0, 1]], np.float32),
             np.array([-0.15, 0, 0, 0, 0], np.float32),
-        )  # barrel lens curve
-        image = cv2.medianBlur(image, 5)  # soft long-exposure smudge
+        )
+        image = cv2.medianBlur(image, 5)
         sepia = np.clip(
             cv2.transform(
                 image.astype(np.float32),
@@ -337,14 +303,14 @@ class ChronoLensApp:
             ),
             0,
             255,
-        )  # sepia tone
+        )
         y, x = np.mgrid[0:h, 0:w]
         mask = np.clip(
             1 - 0.5 * (((x - w / 2) / (w / 2)) ** 2 +
                        ((y - h / 2) / (h / 2)) ** 2),
             0,
             1,
-        )  # vignette
+        )
         return np.clip(sepia * mask[..., None], 0, 255).astype(np.uint8)
 
     def tintype(self, img):
@@ -354,17 +320,17 @@ class ChronoLensApp:
             [[0, h * 0.03], [w, 0], [0, h], [w * 0.98, h * 0.97]])
         img = cv2.warpPerspective(
             img, cv2.getPerspectiveTransform(pts1, pts2), (w, h)
-        )  # curled-plate warp
-        img = cv2.bilateralFilter(img, 9, 75, 75)  # smooth but defined
+        )
+        img = cv2.bilateralFilter(img, 9, 75, 75)
         gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
         img = cv2.merge(
             [gray, gray, np.clip(gray.astype(np.int16) +
                                  10, 0, 255).astype(np.uint8)]
-        )  # cool silver tint
+        )
         noise = np.random.normal(0, 10, img.shape).astype(np.int16)
         img = np.clip(img.astype(np.int16) + noise, 0, 255).astype(
             np.uint8
-        )  # scratch/dust grain
+        )
         y, x = np.mgrid[0:h, 0:w]
         mask = np.clip(
             1 - 0.6 * (((x - w / 2) / (w / 2)) ** 2 +
@@ -374,15 +340,15 @@ class ChronoLensApp:
         )
         return np.clip(img.astype(np.float32) * mask[..., None], 0, 255).astype(
             np.uint8
-        )  # heavy vignette
+        )
 
     def sepia_portrait_studio(self, img):
-        img = cv2.GaussianBlur(img, (0, 0), 1.2)  # soft studio-lens focus
+        img = cv2.GaussianBlur(img, (0, 0), 1.2)
         edges = cv2.Sobel(cv2.cvtColor(
             img, cv2.COLOR_RGB2GRAY), cv2.CV_8U, 1, 1)
         img = cv2.addWeighted(
             img, 0.9, cv2.cvtColor(edges, cv2.COLOR_GRAY2RGB), 0.1, 0
-        )  # subtle etched detail
+        )
         sepia = np.clip(
             cv2.transform(
                 img.astype(np.float32),
@@ -396,11 +362,11 @@ class ChronoLensApp:
             ),
             0,
             255,
-        ).astype(np.uint8)  # sepia
+        ).astype(np.uint8)
         ycrcb = cv2.cvtColor(sepia, cv2.COLOR_RGB2YCrCb)
         ycrcb[:, :, 0] = cv2.createCLAHE(clipLimit=1.5).apply(
             ycrcb[:, :, 0]
-        )  # soft period contrast
+        )
         return cv2.cvtColor(ycrcb, cv2.COLOR_YCrCb2RGB)
 
     def kodachrome_summer(self, img):
@@ -410,15 +376,15 @@ class ChronoLensApp:
             cv2.getRotationMatrix2D(
                 (w / 2, h / 2), np.random.uniform(-2, 2), 1),
             (w, h),
-        )  # snapshot tilt
-        img = cv2.bilateralFilter(img, 7, 60, 60)  # slide-film smoothness
+        )
+        img = cv2.bilateralFilter(img, 7, 60, 60)
         img = np.clip(img.astype(np.float32) * [1.15, 1.0, 0.95], 0, 255).astype(
             np.uint8
-        )  # warm red/yellow push
+        )
         noise = np.random.normal(0, 8, img.shape).astype(np.int16)
         img = np.clip(img.astype(np.int16) + noise, 0, 255).astype(
             np.uint8
-        )  # fine film grain
+        )
         y, x = np.mgrid[0:h, 0:w]
         mask = np.clip(
             1 - 0.35 * (((x - w / 2) / (w / 2)) ** 2 +
@@ -428,10 +394,9 @@ class ChronoLensApp:
         )
         return np.clip(img.astype(np.float32) * mask[..., None], 0, 255).astype(
             np.uint8
-        )  # light vignette
+        )
 
     def scale_channel(self, channel, factor):
-        # Uniform zoom about the frame centre, used for lens colour fringing
         h, w = channel.shape[:2]
         matrix = cv2.getRotationMatrix2D((w / 2, h / 2), 0, factor)
         return cv2.warpAffine(
@@ -443,41 +408,40 @@ class ChronoLensApp:
         y, x = np.mgrid[0:h, 0:w]
         r2 = ((x - w / 2) / (w / 2)) ** 2 + ((y - h / 2) / (h / 2)) ** 2
 
-        img = cv2.GaussianBlur(img, (0, 0), 0.8)  # cheap plastic lens softness
+        img = cv2.GaussianBlur(img, (0, 0), 0.8)
         soft = cv2.GaussianBlur(img, (0, 0), 2.5)
         edge = np.clip(r2 * 0.8, 0, 1)[..., None]
         img = (img * (1 - edge) + soft * edge).astype(
             np.uint8
-        )  # corners fall off the focal plane
+        )
 
         r, g, b = cv2.split(img)
         img = cv2.merge(
             [self.scale_channel(r, 1.004), g, self.scale_channel(b, 0.996)]
-        )  # chromatic aberration toward the edges
+        )
 
         flash = np.clip(1.35 - 0.8 * r2, 0.35, 1.6)[..., None]
-        img = img.astype(np.float32) * flash  # hot centre, fast flash falloff
+        img = img.astype(np.float32) * flash
 
-        img = img * 0.88 + 18  # film base fog: shadows never reach true black
+        img = img * 0.88 + 18
         lum = img.mean(axis=2, keepdims=True) / 255
         img = np.clip(
             img + lum * [10, 4, -12] + (1 - lum) * [-4, 0, 8], 0, 255
-        ).astype(np.uint8)  # warm highlights, cool shadows of colour negative
+        ).astype(np.uint8)
 
         ycrcb = cv2.cvtColor(img, cv2.COLOR_RGB2YCrCb)
         ycrcb[:, :, 0] = cv2.addWeighted(
             ycrcb[:, :, 0], 0.7, cv2.equalizeHist(ycrcb[:, :, 0]), 0.3, 0
-        )  # harsh flash contrast
+        )
         img = cv2.cvtColor(ycrcb, cv2.COLOR_YCrCb2RGB)
 
         noise = np.random.normal(0, 6, img.shape).astype(np.int16)
         img = np.clip(img.astype(np.int16) + noise, 0, 255).astype(
             np.uint8
-        )  # ISO 800 film grain, laid down before the scan quantises it
-        return (img // 8 * 8 + 4).astype(np.uint8)  # reduced colour depth
+        )
+        return (img // 8 * 8 + 4).astype(np.uint8)
 
     def display_image(self, image, canvas):
-        # Scales photo proportionally inside 400x400 bounds
         h, w = image.shape[:2]
         scale = min(self.PREVIEW_SIZE / w, self.PREVIEW_SIZE / h)
         new_w, new_h = max(1, int(w * scale)), max(1, int(h * scale))
