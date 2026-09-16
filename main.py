@@ -18,11 +18,14 @@ class ChronoLensApp:
     FONT_LABEL = ("Georgia", 11)
     FONT_MONO = ("Courier", 10, "bold")
 
+    PREVIEW_SIZE = 400  # Viewport edge, in pixels
+    FRAME_DELAY_MS = 33  # ~30 fps live feed
+
     def __init__(self, root):
         self.root = root
         self.root.title("ChronoLens: Photographic Time Machine")
         self.root.configure(bg=self.COLOR_BG)
-        self.root.geometry("880x560")
+        self.root.geometry("960x620")
         self.root.resizable(False, False)
 
         # Header Title Banner
@@ -60,6 +63,45 @@ class ChronoLensApp:
         )
         self.load_btn.pack(side=LEFT, padx=10)
 
+        # Webcam Capture Button
+        self.webcam_btn = Button(
+            control_panel,
+            text="📷 Start Webcam",
+            font=self.FONT_MONO,
+            fg=self.COLOR_TEXT,
+            bg=self.COLOR_BTN,
+            activebackground=self.COLOR_BTN_HOVER,
+            activeforeground=self.COLOR_ACCENT,
+            relief="groove",
+            bd=3,
+            cursor="hand2",
+            command=self.toggle_webcam,
+        )
+        self.webcam_btn.pack(side=LEFT, padx=10)
+
+        # Freeze-Frame Capture Button
+        self.capture_btn = Button(
+            control_panel,
+            text="📸 Capture",
+            font=self.FONT_MONO,
+            fg=self.COLOR_TEXT,
+            bg=self.COLOR_BTN,
+            activebackground=self.COLOR_BTN_HOVER,
+            activeforeground=self.COLOR_ACCENT,
+            disabledforeground="#6B5C4E",
+            relief="groove",
+            bd=3,
+            cursor="hand2",
+            state=DISABLED,
+            command=self.capture_frame,
+        )
+        self.capture_btn.pack(side=LEFT, padx=10)
+
+        self.cap = None
+        self.webcam_running = False
+        self.webcam_job = None
+        self.root.protocol("WM_DELETE_WINDOW", self.on_close)
+
         # Era Selection Dropdown Menu
         Label(
             control_panel,
@@ -94,6 +136,17 @@ class ChronoLensApp:
         )
         self.filter_menu.pack(side=LEFT, padx=5)
 
+        # Status Readout
+        self.status_var = StringVar(value="Import a subject or start the webcam.")
+        Label(
+            root,
+            textvariable=self.status_var,
+            font=self.FONT_LABEL,
+            fg=self.COLOR_TEXT,
+            bg=self.COLOR_BG,
+            anchor=W,
+        ).pack(fill=X, padx=24, pady=(6, 0))
+
         # Temporal Dial (Intensity/Kernel Slider)
         # self.kernel_slider = Scale(
         #     control_panel,
@@ -119,8 +172,8 @@ class ChronoLensApp:
         # Original Photo Viewport
         self.canvas_orig = Canvas(
             canvas_frame,
-            width=400,
-            height=400,
+            width=self.PREVIEW_SIZE,
+            height=self.PREVIEW_SIZE,
             bg="#0D0B0A",
             highlightbackground=self.COLOR_ACCENT,
             highlightthickness=2,
@@ -130,8 +183,8 @@ class ChronoLensApp:
         # Processed Photo Viewport
         self.canvas_filtered = Canvas(
             canvas_frame,
-            width=400,
-            height=400,
+            width=self.PREVIEW_SIZE,
+            height=self.PREVIEW_SIZE,
             bg="#0D0B0A",
             highlightbackground=self.COLOR_ACCENT,
             highlightthickness=2,
@@ -139,6 +192,7 @@ class ChronoLensApp:
         self.canvas_filtered.pack(side=RIGHT, expand=True)
 
     def load_image(self):
+        self.stop_webcam()
         path = filedialog.askopenfilename(
             filetypes=[("Image Files", "*.jpg *.jpeg *.png *.bmp")]
         )
@@ -150,6 +204,90 @@ class ChronoLensApp:
         self.image = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         self.display_image(self.image, self.canvas_orig)
         self.apply_filter()
+        self.status_var.set("Subject imported — choose a destination era.")
+
+    def toggle_webcam(self):
+        if self.webcam_running:
+            self.stop_webcam()
+            return
+
+        self.cap = cv2.VideoCapture(0)
+        if not self.cap.isOpened():
+            self.cap.release()
+            self.cap = None
+            self.status_var.set(
+                "⚠ No camera found — check that this app is allowed camera access."
+            )
+            return
+
+        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+
+        self.webcam_running = True
+        self.webcam_btn.config(text="⏹ Stop Webcam")
+        self.capture_btn.config(state=NORMAL)
+        self.status_var.set("Live feed running — press Capture to freeze a plate.")
+        self.update_webcam_frame()
+
+    def update_webcam_frame(self):
+        self.webcam_job = None
+        if not self.webcam_running or self.cap is None:
+            return
+
+        ret, frame = self.cap.read()
+        if not ret:
+            self.stop_webcam()
+            self.status_var.set("⚠ Lost the camera feed.")
+            return
+
+        # Filters run on viewport-sized frames so the live feed keeps up
+        self.image = self.to_preview(cv2.flip(frame, 1))
+        self.display_image(self.image, self.canvas_orig)
+        self.apply_filter()
+
+        self.webcam_job = self.root.after(self.FRAME_DELAY_MS, self.update_webcam_frame)
+
+    def capture_frame(self):
+        if not self.webcam_running or self.cap is None:
+            return
+
+        ret, frame = self.cap.read()  # Full-resolution keeper, not the preview copy
+        self.stop_webcam()
+        if not ret:
+            self.status_var.set("⚠ Could not capture a frame.")
+            return
+
+        self.image = cv2.cvtColor(cv2.flip(frame, 1), cv2.COLOR_BGR2RGB)
+        self.display_image(self.image, self.canvas_orig)
+        self.apply_filter()
+        self.status_var.set("Plate captured — choose a destination era.")
+
+    def to_preview(self, frame):
+        # Downscales a BGR camera frame to the viewport and converts it to RGB
+        h, w = frame.shape[:2]
+        scale = min(self.PREVIEW_SIZE / w, self.PREVIEW_SIZE / h, 1.0)
+        if scale < 1.0:
+            frame = cv2.resize(
+                frame,
+                (max(1, int(w * scale)), max(1, int(h * scale))),
+                interpolation=cv2.INTER_AREA,
+            )
+        return cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+    def stop_webcam(self):
+        self.webcam_running = False
+        if self.webcam_job is not None:
+            self.root.after_cancel(self.webcam_job)
+            self.webcam_job = None
+        if self.cap is not None:
+            self.cap.release()
+            self.cap = None
+        self.webcam_btn.config(text="📷 Start Webcam")
+        self.capture_btn.config(state=DISABLED)
+
+    def on_close(self):
+        self.stop_webcam()
+        self.root.destroy()
 
     def apply_filter(self, _=None):
         if not hasattr(self, "image"):
@@ -310,7 +448,7 @@ class ChronoLensApp:
     def display_image(self, image, canvas):
         # Scales photo proportionally inside 400x400 bounds
         h, w = image.shape[:2]
-        scale = min(400 / w, 400 / h)
+        scale = min(self.PREVIEW_SIZE / w, self.PREVIEW_SIZE / h)
         new_w, new_h = max(1, int(w * scale)), max(1, int(h * scale))
 
         resized = cv2.resize(image, (new_w, new_h), interpolation=cv2.INTER_AREA)
@@ -318,7 +456,9 @@ class ChronoLensApp:
         image_tk = ImageTk.PhotoImage(image_pil)
 
         canvas.delete("all")
-        canvas.create_image(200, 200, anchor=CENTER, image=image_tk)
+        canvas.create_image(
+            self.PREVIEW_SIZE // 2, self.PREVIEW_SIZE // 2, anchor=CENTER, image=image_tk
+        )
         canvas.image = image_tk
 
 
